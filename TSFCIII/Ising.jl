@@ -2,8 +2,7 @@ using PyPlot
 
 module Ising
 
-#Creamos el tipo de variable Spin, el cual es un booleano (false o true, true=+1, false=-1). Va a haber que
-#añadir esto más tarde al código
+#Creamos el tipo de variable Spin, el cual es un Int8 (sólo usaremos arriba=+1 y abajo=-1.
 
 type Spin
   spin::Int8
@@ -104,85 +103,97 @@ function Changeor(L::Int)
   return Changeor(i,j,0,false)
 end
 
+
 function ΔE(S,i,j)
 
     return S.J*2*S.Mat[i,j]*(S.Mat[mod1(i+1,S.L),j]+S.Mat[mod1(i-1,S.L),j]+S.Mat[i,mod1(j-1,S.L)]+S.Mat[i,mod1(j+1,S.L)])
 
 end;
 
-function acceptance(S::Spin_Configuration,i,j)
-  Δe=ΔE(S,i,j)
-  α=exp(-(S.β)*(Δe))
+function ΔE!(S::Spin_Configuration,C::Changeor)
+
+    C.ΔE = S.J*2*S.Mat[C.i,C.j]*(S.Mat[mod1(C.i+1,S.L),C.j]+S.Mat[mod1(C.i-1,S.L),C.j]+S.Mat[C.i,mod1(C.j-1,S.L)]+S.Mat[C.i,mod1(C.j+1,S.L)])
+
+end;
+
+function acceptance!(S::Spin_Configuration,C::Changeor)
+  ΔE!(S,C)
+  C.α=exp(-(S.β)*(C.ΔE))
 
   if rand()<α
-      return Changeor(i,j,Δe,true)
+      C.α=true
   else
-      return Changeor(i,j,0,false)
+      C.α=false
   end
 end;
 
-function one_step_flip(S::Spin_Configuration)
+function new_energy!(S::Spin_Configuration,C::Changeor)
+   S.E+=C.ΔE
+end;
 
-      i,j=spin_choose(L)
-      α,Δe=acceptance(S,i,j)
-      if α==true
-          spin_flip!(S,i,j)
-          return Δe
-      else
-          return 0
-      end
-  end;
+function new_mag!(S::Spin_Configuration,C::Changeor)
+  if S.Mat[C.i,C.j]==1
+    S.Mag+=-2
+  else
+    S.Mag+=+2
+  end
+end
 
-  function new_energy(E_old,Δe)
+function one_step_flip!(S::Spin_Configuration,energy==false,mag=false)
+  C=Changeor(S.L)
+  acceptance!(S,C)
 
-      return E_old+Δe
+    if C.α==true
+        spin_flip!(S,C.i,C.j)
+    end
 
-  end;
-
-  function montecarlo_config_run(L::Int,steps::Int,T)
-      N=L*L
-      S=config_maker(L)
-
-      for i in 1:steps
-          one_step_flip(S,T,N,L,1)
-      end
-
-      return S
-  end;
-
-  for T in [0.5:0.5:3]
-      figure()
-      S=montecarlo_config_run(10,10^5,T)
-      imshow(S)
+  if energy
+    new_energy!(S,C)
   end
 
-  function montecarlo_energy_run(L::Int,steps::Int,T)
-      N=L*L
-      S=config_maker(L)
-      E=[periodic_energy(S)]
-      sizehint(E,steps)
+  if mag
+    new_mag!(S,C)
+  end
 
-      for i in 1:steps
-          Δe=one_step_flip(S,T,N,L,1)
-          push!(E,new_energy(E[i],Δe))
-      end
+end;
 
-      return E
-  end;
+function montecarlo_config_run(L::Int,steps::Int,T)
 
-  function montecarlo_mag_run(L::Int,steps::Int,T)
-      N=L*L
-      S=config_maker(L)
-      M=[magnetization(S)]
-      sizehint(M,steps)
+    S=config_maker(L,T)
 
-      for i in 1:steps
-          one_step_flip(S,T,N,L,1)
-          push!(M,magnetization(S))
-      end
+    for i in 1:steps
+        one_step_flip!(S)
+    end
 
-      return M
-  end;
+    return S.Mat
+end;
+
+
+function montecarlo_energy_run(L::Int,steps::Int,T)
+    S=config_maker(L,T)
+    Energy=[S.E]
+    sizehint(Energy,steps)
+
+    for i in 1:steps
+        one_step_flip!(S,true)
+        push!(Energy,S.E)
+    end
+
+    return E
+end;
+
+function montecarlo_mag_run(L::Int,steps::Int,T)
+    S=config_maker(L,T)
+    Mags=[S.Mag]
+    sizehint(Mags,steps)
+
+    for i in 1:steps
+        one_step_flip!(S,false,true)
+        push!(Mags,S.Mag)
+    end
+
+    return Mag
+end;
 
   function Energies(L::Int,steps::Int,Temp::Array)
     for T in Temp
