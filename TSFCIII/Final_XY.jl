@@ -12,6 +12,7 @@ module XY_2D
     J::Float64
     E::Float64
     Mag::Complex64
+    C::Array{Float64,1}
   end
 
   type Changeor
@@ -57,7 +58,7 @@ module XY_2D
             SM[i,j]=2*π*rand()
     end
 
-    S=Spin_Configuration(L,T,SM,inv(T),J,0,0)
+    S=Spin_Configuration(L,T,SM,inv(T),J,0,0,zeros(L+1))
     S.E=periodic_energy(S)
     S.Mag=magnetization(S)
     return S
@@ -98,6 +99,31 @@ module XY_2D
       end
   end
 
+  function correlation!(S::Spin_Configuration)
+    L2=S.L/2
+    COUNTER=zeros(S.L+1)
+    for i in 1:S.L, j in 1:S.L, k in 1:S.L, l in 1:S.L
+
+      if abs(i-k)<int(L2)
+        dx=abs(i-k)
+      else
+        dx=abs(abs(i-k)-S.L)
+      end
+      if abs(j-l)<int(L2)
+        dy=abs(j-l)
+      else
+        dy=abs(abs(j-l)-S.L)
+      end
+
+      COUNTER[dx+dy+1]+=1
+      S.C[dx+dy+1]+=cos(S.Mat[i,j]-S.Mat[k,l])
+    end
+
+    for i in 1:S.L+1
+      S.C[i]=abs(S.C[i])/COUNTER[i]
+    end
+  end
+
   function config_runner(L::Int,steps::Int,T)
       Accepted=0
       S=config_maker(L,T)
@@ -119,11 +145,13 @@ module XY_2D
           push!(Mags,S.Mag)
       end
 
-      return S.Mat,Energy,Mags,Accepted
+      correlation!(S)
+
+      return S.Mat,Energy,Mags,Accepted,S.C
   end
 
-  function plotter(L::Int,steps::Int,T,IMPLOT=true,QUIPLOT=true,EPLOT=true,MAGPLOT=true)
-    S,E,M,Accepted=config_runner(L,steps,T)
+  function plotter(L::Int,steps::Int,T,IMPLOT=true,QUIPLOT=true,EPLOT=true,MAGPLOT=true,CORRPLOT=true)
+    S,E,M,Accepted,Corr=config_runner(L,steps,T)
 
     if IMPLOT==true
       figure()
@@ -152,6 +180,26 @@ module XY_2D
       title("Magnetización a temperatura $T con respecto al tiempo")
       xlabel("Tiempo")
       ylabel("Magnetización")
+    end
+
+    if CORRPLOT==true
+      figure()
+      plot([0:L],Corr,"o-")
+      title("Función de correlación a temperatura $T con respecto a la distancia de separación (lineal)")
+      xlabel("Distancia entre los espines")
+      ylabel("Función de correlación")
+
+      figure()
+      semilogy([0:L],Corr,"o-")
+      title("Función de correlación a temperatura $T con respecto a la distancia de separación (semilog)")
+      xlabel("Distancia entre los espines")
+      ylabel("Función de correlación")
+
+      figure()
+      loglog([0:L],Corr,"o-")
+      title("Función de correlación a temperatura $T con respecto a la distancia de separación (loglog)")
+      xlabel("Distancia entre los espines")
+      ylabel("Función de correlación")
     end
 
   end
