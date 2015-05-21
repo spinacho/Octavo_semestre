@@ -222,35 +222,39 @@ module XY_2D
 
 
   function size_changer(L,steps::Int,T)
-    Mats=Array[]
-    Energies=Float64[]
-    Magnetizations=Float64[]
-    Acceptances=Float64[]
+    Energies=Array[]
+    Magnetizations=Array[]
+    Acceptances=Array[]
 
     for l in L
-      M,E,Mag,Acc=config_runner(l,steps,T)
-      push!(Mats,M)
-      push!(Energies,mean(E[int(0.85*end):end])/(l^2))
-      push!(Magnetizations,mean(abs(Mag[int(0.85*end):end]))/(l^2))
-      push!(Acceptances,Acc)
+      E,M,A=mean_runner(l,steps,T)
+      push!(Energies,E/(l^2))
+      push!(Magnetizations,M/(l^2))
+      push!(Acceptances,A)
     end
 
-      return Mats,Energies,Magnetizations,Acceptances
+      return Energies,Magnetizations,Acceptances
   end
 
   function Size_Plotter(L,steps::Int,T)
-    Mats,Energies,Magnetizations,Acceptances=size_changer(L,steps,T)
-    figure()
-    plot(L,Energies)
-    title("Energía promedio por espín con respecto al tamaño de la matriz a temperatura $T \n")
-    xlabel("Tamaño del arreglo")
+    Energies,Magnetizations,Acceptances=size_changer(L,steps,T)
+    figure(figsize=(14,8))
+    for i in 1:length(L)
+      plot(T,Energies[i], label="Tamaño del arreglo $(L[i])")
+    end
+    title("Energía promedio por espín con respecto a las temperaturas \n")
+    xlabel("Temperatura")
     ylabel("Energía promedio por espín")
+    legend(loc=0, fontsize=10)
 
-    figure()
-    plot(L,Magnetizations)
-    title("Magnetización promedio por espín con respecto al tamaño de la matriz a temperatura $T \n")
-    xlabel("Tamaño del arreglo")
+    figure(figsize=(14,8))
+    for i in 1:length(L)
+      plot(T,Magnetizations[i], label="Tamaño del arreglo $(L[i])")
+    end
+    title("Magnetización promedio por espín con respecto a las temperaturas \n")
+    xlabel("Temperatura")
     ylabel("Magnetización promedio por espín")
+    legend(loc=0, fontsize=10)
   end
 end
 
