@@ -254,7 +254,7 @@ module XY_2D
     title("Magnetización promedio por espín con respecto a las temperaturas \n")
     xlabel("Temperatura")
     ylabel("Magnetización promedio por espín")
-    legend(loc=0, fontsize=10)
+    legend(loc=0, fontsize=14)
   end
 end
 
