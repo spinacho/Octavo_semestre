@@ -12,7 +12,6 @@ module XY_2D
     J::Float64
     E::Float64
     Mag::Complex64
-    C::Array{Float64,1}
   end
 
   type Changeor
@@ -58,7 +57,7 @@ module XY_2D
             SM[i,j]=2*π*rand()
     end
 
-    S=Spin_Configuration(L,T,SM,inv(T),J,0,0,zeros(L+1))
+    S=Spin_Configuration(L,T,SM,inv(T),J,0,0)
     S.E=periodic_energy(S)
     S.Mag=magnetization(S)
     return S
@@ -99,31 +98,6 @@ module XY_2D
       end
   end
 
-  function correlation!(S::Spin_Configuration)
-    L2=S.L/2
-    COUNTER=zeros(S.L+1)
-    for i in 1:S.L, j in 1:S.L, k in 1:S.L, l in 1:S.L
-
-      if abs(i-k)<int(L2)
-        dx=abs(i-k)
-      else
-        dx=abs(abs(i-k)-S.L)
-      end
-      if abs(j-l)<int(L2)
-        dy=abs(j-l)
-      else
-        dy=abs(abs(j-l)-S.L)
-      end
-
-      COUNTER[dx+dy+1]+=1
-      S.C[dx+dy+1]+=cos(S.Mat[i,j]-S.Mat[k,l])
-    end
-
-    for i in 1:S.L+1
-      S.C[i]=abs(S.C[i])/COUNTER[i]
-    end
-  end
-
   function config_runner(L::Int,steps::Int,T)
       Accepted=0
       S=config_maker(L,T)
@@ -145,13 +119,11 @@ module XY_2D
           push!(Mags,S.Mag)
       end
 
-      correlation!(S)
-
-      return S.Mat,Energy,Mags,Accepted,S.C
+      return S.Mat,Energy,Mags,Accepted
   end
 
-  function plotter(L::Int,steps::Int,T,IMPLOT=true,QUIPLOT=true,EPLOT=true,MAGPLOT=true,CORRPLOT=true)
-    S,E,M,Accepted,Corr=config_runner(L,steps,T)
+  function plotter(L::Int,steps::Int,T,IMPLOT=true,QUIPLOT=true,EPLOT=true,MAGPLOT=true)
+    S,E,M,Accepted=config_runner(L,steps,T)
 
     if IMPLOT==true
       figure()
@@ -181,27 +153,6 @@ module XY_2D
       xlabel("Tiempo")
       ylabel("Magnetización")
     end
-
-    if CORRPLOT==true
-      figure()
-      plot([0:L],Corr,"o-")
-      title("Función de correlación a temperatura $T con respecto a la distancia de separación (lineal)")
-      xlabel("Distancia entre los espines")
-      ylabel("Función de correlación")
-
-      figure()
-      semilogy([0:L],Corr,"o-")
-      title("Función de correlación a temperatura $T con respecto a la distancia de separación (semilog)")
-      xlabel("Distancia entre los espines")
-      ylabel("Función de correlación")
-
-      figure()
-      loglog([0:L],Corr,"o-")
-      title("Función de correlación a temperatura $T con respecto a la distancia de separación (loglog)")
-      xlabel("Distancia entre los espines")
-      ylabel("Función de correlación")
-    end
-
   end
 
   function mean_runner(L::Int,steps::Int,T,BC=0.85)
@@ -268,8 +219,40 @@ module XY_2D
 
       return MATS
   end
-end
 
+
+  function size_changer(L,steps::Int,T)
+    Mats=Array[]
+    Energies=Float64[]
+    Magnetizations=Float64[]
+    Acceptances=Float64[]
+
+    for l in L
+      M,E,Mag,Acc=config_runner(l,steps,T)
+      push!(Mats,M)
+      push!(Energies,mean(E[int(0.85*end):end])/(l^2))
+      push!(Magnetizations,mean(abs(Mag[int(0.85*end):end]))/(l^2))
+      push!(Acceptances,Acc)
+    end
+
+      return Mats,Energies,Magnetizations,Acceptances
+  end
+
+  function Size_Plotter(L,steps::Int,T)
+    Mats,Energies,Magnetizations,Acceptances=size_changer(L,steps,T)
+    figure()
+    plot(L,Energies)
+    title("Energía promedio por espín con respecto al tamaño de la matriz a temperatura $T \n")
+    xlabel("Tamaño del arreglo")
+    ylabel("Energía promedio por espín")
+
+    figure()
+    plot(L,Magnetizations)
+    title("Magnetización promedio por espín con respecto al tamaño de la matriz a temperatura $T \n")
+    xlabel("Tamaño del arreglo")
+    ylabel("Magnetización promedio por espín")
+  end
+end
 
 
 module XY_3D
